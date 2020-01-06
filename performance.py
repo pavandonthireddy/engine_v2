@@ -65,6 +65,14 @@ def metrics():
     
     res_dict['MAX_SIZE'] = np.nanmax(np.abs(bets.cleaned_strategy_weights))
     
+    #9. Stability of Wealth Process
+    
+    cum_log_returns = np.log1p(bets.strategy_daily_returns).cumsum()
+    rhat = stats.linregress(np.arange(len(cum_log_returns)), cum_log_returns)[2]
+    res_dict['STABILITY_OF_WEALTH_PROCESS']=rhat**2
+    
+
+    
     ##############################################################################################
     # B. Performance measures
     #1. Equity curves
@@ -73,12 +81,12 @@ def metrics():
         return amount*np.cumprod(1+ret)
     
     curves = dict()
-    curves['STRATEGY_CURVE']   = equity_curve(bets.starting_value,bets.strategy_daily_returns)
-    curves['UNDERLYING_CURVE'] = equity_curve(bets.starting_value,bets.underlying_daily_returns)
-    curves['BENCHMARK_CURVE']  = equity_curve(bets.starting_value,benchmark_returns)
-    curves['RISK_FREE_CURVE']  = equity_curve(bets.starting_value,rf_returns)
-    curves['LONG_CURVE']       = equity_curve(bets.starting_value,bets.long_contribution)
-    curves['SHORT_CURVE']       = equity_curve(bets.starting_value,bets.short_contribution)
+    curves['Strategy']   = equity_curve(bets.starting_value,bets.strategy_daily_returns)
+    curves['Buy & Hold Underlying'] = equity_curve(bets.starting_value,bets.underlying_daily_returns)
+    curves['Benchmark']  = equity_curve(bets.starting_value,benchmark_returns)
+    curves['Risk free Asset']  = equity_curve(bets.starting_value,rf_returns)
+    curves['Long Contribution']       = equity_curve(bets.starting_value,bets.long_contribution)
+    curves['Short Contribution']       = equity_curve(bets.starting_value,bets.short_contribution)
     
     
     #equity_curves = [strategy_curve,benchmark_curve,risk_free_curve]
@@ -89,16 +97,21 @@ def metrics():
     
     
     #2. Pnl from long positions check long_pnl 
-    res_dict['PNL_FROM_STRATEGY'] = curves['STRATEGY_CURVE'][-1]
-    res_dict['PNL_FROM_LONG']    = curves['LONG_CURVE'][-1]
+    res_dict['PNL_FROM_STRATEGY'] = curves['Strategy'][-1]
+    res_dict['PNL_FROM_LONG']    = curves['Long Contribution'][-1]
     
     #3. Annualized rate of return (Check this)
     res_dict['ANNUALIZED_AVERAGE_RATE_OF_RETURN'] = ((1+np.mean(bets.strategy_daily_returns))**(365)-1)
     res_dict['CUMMULATIVE_RETURN']= (np.cumprod(1+bets.strategy_daily_returns)[-1]-1)
+    
+    yrs = res_dict['TOTAL_BARS']/252
+    res_dict['CAGR_STRATEGY'] = ((curves['Strategy'][-1]/curves['Strategy'][0])**(1/yrs))-1
+    res_dict['CAGR_BENCHMARK'] = ((curves['Benchmark'][-1]/curves['Benchmark'][0])**(1/yrs))-1
     #4. Hit Ratio
     
     res_dict['HIT_RATIO'] = ((bets.daily_pnl>0).sum())/((bets.daily_pnl>0).sum()+(bets.daily_pnl<0).sum()+(bets.daily_pnl==0).sum())
     
+
     ##############################################################################################
     # C. Runs
     # 1. Runs concentration
@@ -177,6 +190,23 @@ def metrics():
         res_dict['SIGNIFICANCE_AT_0.01%']='STATISTICALLY_SIGNIFICANT'
     else:
         res_dict['SIGNIFICANCE_AT_0.01%']='NOT_STATISTICALLY_SIGNIFICANT'
+        
+    #4. Omega Ratio 
+    returns_less_thresh = excess_returns-(((100)**(1/252))-1)
+    numer = sum(returns_less_thresh[returns_less_thresh > 0.0])
+    denom = -1.0 * sum(returns_less_thresh[returns_less_thresh < 0.0])
+    res_dict['OMEGA_RATIO']=numer/denom
+    
+    #5. Tail Ratio
+    res_dict['TAIL_RATIO']=np.abs(np.percentile(bets.strategy_daily_returns, 95)) /np.abs(np.percentile(bets.strategy_daily_returns, 5))
+    
+    
+    #6. Rachev Ratio 
+    left_threshold = np.percentile(excess_returns, 5)
+    right_threshold = np.percentile(excess_returns, 95)
+    CVAR_left = -1*(np.nanmean(excess_returns[excess_returns<=left_threshold]))
+    CVAR_right = (np.nanmean(excess_returns[excess_returns>=right_threshold]))
+    res_dict['RACHEV_RATIO']=CVAR_right/CVAR_left
     #############################################################################################
     # E. RISK MEASURES
     
@@ -187,8 +217,8 @@ def metrics():
     #2. ANNUALIZED VOLATILITY
     res_dict['ANNUALIZED_VOLATILITY'] = np.std(bets.strategy_daily_returns)*np.sqrt(252)
 
-    
-    
+    #3. MAR Ratio
+    res_dict['MAR_RATIO']=(res_dict['CAGR_STRATEGY'])/abs(res_dict['MDD_STRATEGY'])
     
     
     

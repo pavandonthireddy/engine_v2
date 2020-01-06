@@ -20,9 +20,9 @@ def equity_curves_plot(x,y_dict):
     fig, ax = plt.subplots()
     ax.yaxis.set_major_formatter(formatter)
     for name,curve in y_dict.items():
-        if name == 'STRATEGY_CURVE':
+        if name == 'Strategy':
             plt.plot(x,curve,'black',label = name)
-        if name == 'BENCHMARK_CURVE':
+        if name == 'Benchmark':
             plt.plot(x,curve,'lightgray',label = name)
     plt.legend(loc="upper left")
     plt.title("Equity Curve") 
