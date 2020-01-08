@@ -21,6 +21,8 @@ def metrics():
     benchmark_returns = datasets['benchmark'][bets.clean_values_from_weights]
     rf_returns   = datasets['rf_rate'][bets.clean_values_from_weights]
     
+    fama_factors = datasets['Fama_French'][bets.clean_values_from_weights]
+    
     cleaned_index = bets.cleaned_index_weights
     
     
@@ -241,23 +243,101 @@ def metrics():
     res_dict['CLASSIFICATION_DATA']=pd.DataFrame(res_dict['CLASSIFICATION_DATA'])
 
 
-    return res_dict
+
+
+    #############################################################################################
+    # G. Factor Analysis
+    import statsmodels.formula.api as sm # module for stats models
+    from statsmodels.iolib.summary2 import summary_col
+    
+    def assetPriceReg(excess_ret, fama):
+        
+        df_stock_factor = pd.DataFrame({'ExsRet':excess_ret, 'MKT':fama[:,0], 'SMB':fama[:,1],'HML':fama[:,2], 'RMW':fama[:,3],'CMA':fama[:,4]})
+        
+        CAPM = sm.ols(formula = 'ExsRet ~ MKT', data=df_stock_factor).fit(cov_type='HAC',cov_kwds={'maxlags':1})
+        FF3 = sm.ols( formula = 'ExsRet ~ MKT + SMB + HML', data=df_stock_factor).fit(cov_type='HAC',cov_kwds={'maxlags':1})
+        FF5 = sm.ols( formula = 'ExsRet ~ MKT + SMB + HML + RMW + CMA', data=df_stock_factor).fit(cov_type='HAC',cov_kwds={'maxlags':1})
+
+        CAPMtstat = CAPM.tvalues
+        FF3tstat = FF3.tvalues
+        FF5tstat = FF5.tvalues
+    
+        CAPMcoeff = CAPM.params
+        FF3coeff = FF3.params
+        FF5coeff = FF5.params
+    
+        # DataFrame with coefficients and t-stats
+        results_df = pd.DataFrame({'CAPMcoeff':CAPMcoeff,'CAPMtstat':CAPMtstat,
+                                   'FF3coeff':FF3coeff, 'FF3tstat':FF3tstat,
+                                   'FF5coeff':FF5coeff, 'FF5tstat':FF5tstat},
+        index = ['Intercept', 'MKT', 'SMB', 'HML', 'RMW', 'CMA'])
+    
+    
+        dfoutput = summary_col([CAPM,FF3, FF5],stars=True,float_format='%0.4f',
+                      model_names=['CAPM','FF3','FF5'],
+                      info_dict={'N':lambda x: "{0:d}".format(int(x.nobs)),
+                                 'Adjusted R2':lambda x: "{:.4f}".format(x.rsquared_adj)}, 
+                                 regressor_order = ['Intercept', 'MKT', 'SMB', 'HML', 'RMW', 'CMA'])
+    
+        print(dfoutput)
+        
+        return dfoutput,results_df
+    
+    res_dict['FACTOR_RES'],_= assetPriceReg(excess_returns, fama_factors)
+
+   
+
+
+    #############################################################################################
+    # H. Bootstrap Stats
+    # 1. Sharpe Bootstrap
+    from arch.bootstrap import MovingBlockBootstrap
+    import matplotlib.pyplot as plt
+    
+    from numpy.random import RandomState
+    rs = RandomState(1234567)
+    
+    
+    bs_sharpe = MovingBlockBootstrap(5,excess_returns, random_state=rs)
+    
+    def sharpe(y):
+        return (mth.sqrt(252)*np.mean(y))/np.std(y)
+    
+#
+#    final_sharpe = np.empty(excess_returns.shape)
+#    for data_b in bs_sharpe.bootstrap(1000):
+#        final_sharpe=np.vstack((final_sharpe, data_b[0][0]))
+#    #final_sharpe= final_sharpe[1:,10:]
+#    
+#    mean_bs = np.mean(final_sharpe,axis=0)
+#    std_bs = np.std(final_sharpe,axis=0)
+#    
+#    res = mth.sqrt(252)*mean_bs/std_bs
+    res = bs_sharpe.apply(sharpe,10000)   
+    fig, ax = plt.subplots()   
+    hist,bin_edges = np.histogram(res,bins=100)
+    prob = hist/np.sum(hist)
+    plt.bar(bin_edges[:-1], prob,color='g',alpha=0.75)
+#    n, bins, patches = plt.hist(res, 50, density=True, facecolor='g', alpha=0.75)
+
+    plt.axvline(x=res_dict['SHARPE_RATIO'], color='black',label ='Strategy_Sharpe = {}'.format(res_dict['SHARPE_RATIO']))
+    plt.axvline(x=np.median(res), color='k', linestyle='--', label ='Bootstrap Sharpe Median = {}'.format(np.median(res)))
+     
+    plt.legend(loc="upper left")
+    plt.xlabel('Sharpe')
+    plt.ylabel('Probability')
+    plt.title('Distribution of Sharpe Ratio')
+    plt.grid('on')
+    plt.show()
+
+    
+
 
 ############################################################################################
-# Bootstrapping
 
-#from arch.bootstrap import MovingBlockBootstrap
-#import matplotlib.pyplot as plt
-#
-#bs_sharpe = MovingBlockBootstrap(1,excess_returns)
-#
-#final_sharpe = np.empty(excess_returns.shape)
-#for data in bs_sharpe.bootstrap(1000):
-#    final_sharpe=np.vstack((final_sharpe,data[0][0]))
-#final_sharpe= final_sharpe[1:,10:]
-#
-#mean_bs = np.mean(final_sharpe,axis=0)
-#std_bs = np.std(final_sharpe,axis=0)
-#sharpe_dist = mth.sqrt(252)*mean_bs/std_bs
-#plt.hist(sharpe_dist)
+
+
+
+
+    return res_dict
     

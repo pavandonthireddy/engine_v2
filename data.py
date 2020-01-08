@@ -67,7 +67,7 @@ def load_datasets(address,other_assets,variable_list,clean_index,portfolio,ticke
         var_df = var_df[var_df.index.isin(clean_index)]
         var_df.fillna(method='ffill',axis=0,inplace=True)
         var_array=var_df.values
-        if var in other_assets:
+        if var in other_assets and var !='Fama_French':
             var_array = var_array[:,6]
         datasets_dict[var]=var_array
     return datasets_dict

@@ -30,3 +30,4 @@ def equity_curves_plot(x,y_dict):
     plt.ylabel("Dollars") 
     plt.grid('on')
     plt.show()
+#    plt.cla()
