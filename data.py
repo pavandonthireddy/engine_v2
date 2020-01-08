@@ -31,8 +31,8 @@ variable_list    = hf.excel_list(variables_file_name,variables_column_name)
 address=datasets_address
 
 def get_clean_index(address,start_date,end_date):
-    sample_address = address+"sample.csv"
-    sample = pd.read_csv(sample_address,index_col=0)
+    sample_address = address+"sample.pkl"
+    sample = pd.read_pickle(sample_address)
     sample.index = pd.to_datetime(sample.index)
     sample = sample[sample.index.isin(pd.date_range(start=start_date,end=end_date))]
     sample = sample.dropna(axis=0,how='all')
@@ -58,8 +58,8 @@ portfolio = get_portfolio(portfolio_all,tickers_universe,tickers)
 def load_datasets(address,other_assets,variable_list,clean_index,portfolio,tickers_universe):
     datasets_dict = {}
     for var in variable_list:
-        var_address=address+var+".csv"
-        var_df=pd.read_csv(var_address,index_col=0)
+        var_address=address+var+".pkl"
+        var_df=pd.read_pickle(var_address)
         if var not in other_assets:
             var_df.columns = tickers_universe #white spaces issues; hence this
             var_df = var_df[portfolio]
