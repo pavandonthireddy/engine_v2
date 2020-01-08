@@ -31,3 +31,18 @@ def equity_curves_plot(x,y_dict):
     plt.grid('on')
     plt.show()
 #    plt.cla()
+    
+
+def density_plot_bootstrap(bootstrap,res):
+    import seaborn as sns
+    import matplotlib.pyplot as plt
+    import numpy as np
+    fig, ax = plt.subplots() 
+    sns.distplot(bootstrap, hist=False, kde=True, bins=int(180/5),kde_kws={'shade': True,'linewidth': 4})
+    plt.axvline(x=res, color='black',label ='Strategy_Sharpe = {}'.format(res))
+    plt.axvline(x=np.median(res), color='k', linestyle='--', label ='Bootstrap Sharpe Median = {}'.format(np.median(bootstrap)))
+    plt.legend(loc="upper left")
+    plt.xlabel('Sharpe')
+    plt.title('Distribution of Sharpe Ratio')
+    plt.grid('on')
+    plt.show()

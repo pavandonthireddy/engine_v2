@@ -274,7 +274,7 @@ def metrics():
     
     
         dfoutput = summary_col([CAPM,FF3, FF5],stars=True,float_format='%0.4f',
-                      model_names=['CAPM','FF3','FF5'],
+                      model_names=['CAPM','Fama-French 3 Factors','Fama-French 5 factors'],
                       info_dict={'N':lambda x: "{0:d}".format(int(x.nobs)),
                                  'Adjusted R2':lambda x: "{:.4f}".format(x.rsquared_adj)}, 
                                  regressor_order = ['Intercept', 'MKT', 'SMB', 'HML', 'RMW', 'CMA'])
@@ -292,44 +292,13 @@ def metrics():
     # H. Bootstrap Stats
     # 1. Sharpe Bootstrap
     from arch.bootstrap import MovingBlockBootstrap
-    import matplotlib.pyplot as plt
-    
-    from numpy.random import RandomState
-    rs = RandomState(1234567)
-    
-    
-    bs_sharpe = MovingBlockBootstrap(5,excess_returns, random_state=rs)
+    from numpy.random import RandomState  
+    bs_sharpe = MovingBlockBootstrap(5,excess_returns, random_state=RandomState(1234))
     
     def sharpe(y):
         return (mth.sqrt(252)*np.mean(y))/np.std(y)
-    
-#
-#    final_sharpe = np.empty(excess_returns.shape)
-#    for data_b in bs_sharpe.bootstrap(1000):
-#        final_sharpe=np.vstack((final_sharpe, data_b[0][0]))
-#    #final_sharpe= final_sharpe[1:,10:]
-#    
-#    mean_bs = np.mean(final_sharpe,axis=0)
-#    std_bs = np.std(final_sharpe,axis=0)
-#    
-#    res = mth.sqrt(252)*mean_bs/std_bs
-    res = bs_sharpe.apply(sharpe,10000)   
-    fig, ax = plt.subplots()   
-    hist,bin_edges = np.histogram(res,bins=100)
-    prob = hist/np.sum(hist)
-    plt.bar(bin_edges[:-1], prob,color='g',alpha=0.75)
-#    n, bins, patches = plt.hist(res, 50, density=True, facecolor='g', alpha=0.75)
-
-    plt.axvline(x=res_dict['SHARPE_RATIO'], color='black',label ='Strategy_Sharpe = {}'.format(res_dict['SHARPE_RATIO']))
-    plt.axvline(x=np.median(res), color='k', linestyle='--', label ='Bootstrap Sharpe Median = {}'.format(np.median(res)))
-     
-    plt.legend(loc="upper left")
-    plt.xlabel('Sharpe')
-    plt.ylabel('Probability')
-    plt.title('Distribution of Sharpe Ratio')
-    plt.grid('on')
-    plt.show()
-
+    res = bs_sharpe.apply(sharpe,10000)      
+    plots.density_plot_bootstrap(res,res_dict['SHARPE_RATIO'])
     
 
 
