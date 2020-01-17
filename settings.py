@@ -24,6 +24,7 @@ costs_threshold                 = 0
 
 strategy_expression             = '-rank(Volume)*(gauss_filter(High,5)-gauss_filter(Open,5))'
 
+
 if __name__ =="__main__":
     from performance import metrics
     res=metrics()
