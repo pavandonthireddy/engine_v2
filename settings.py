@@ -6,7 +6,7 @@ Created on Tue Dec 10 02:22:57 2019
 """
 
 start_date                      = '2004-01-01'
-end_date                        = '2018-11-15'
+end_date                        = '2018-01-15'
 datasets_address                = "C:\\Users\\Pavan\\Valkyrie\\engine\\Datasets\\"
 tickers_file_name               = 'Final ticker list.xlsx'
 tickers_column_name             = 'Ticker'
@@ -18,11 +18,13 @@ other_assets                    = ['benchmark','rf_rate','Fama_French']
 dollar_neutral                  = True
 long_leverage                   = 0.5
 short_leverage                  = 0.5
-starting_value                  = 20E6
-costs_threshold                 = 0
+starting_value                  = 20000000.00
+costs_threshold_bps             = 5
+ADV_threshold_percentage        = 10
+commissions_bps                 = 0.1
 
 
-strategy_expression             = '-rank(Volume)*(gauss_filter(High,5)-gauss_filter(Open,5))'
+strategy_expression             = 'mean(-rank(Volume)*(gauss_filter(High,5)-gauss_filter(Open,5)),5)'
 
 
 if __name__ =="__main__":

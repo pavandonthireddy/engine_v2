@@ -6,9 +6,9 @@ Created on Thu Dec  5 00:12:45 2019
 """
 
 import numpy as np
-from settings import starting_value, costs_threshold
+from settings import starting_value, costs_threshold_bps, ADV_threshold_percentage, commissions_bps
 from weights import strategy_weights, long_leverage,short_leverage
-from data import delay,Open_for_ret, Close_for_ret, Volume_for_ret, clean_index, High_for_ret, Low_for_ret
+from data import Liquidity, delay,Open_for_ret, Close_for_ret, clean_index, High_for_ret, Low_for_ret
 
 
 
@@ -24,22 +24,25 @@ cleaned_index_weights = (clean_index.values)[clean_values_from_weights]
 cleaned_strategy_weights       = strategy_weights[clean_values_from_weights]
 
 
-def bets_to_pnl(starting_value,strategy_weights,clean_values,o,h,l,c,long_lev, short_lev):
+
+def bets_to_pnl(starting_value,strategy_weights,clean_values,o,h,l,c,Liq, long_lev, short_lev):
     
 
     cleaned_weights       = strategy_weights[clean_values]
 
     O  = (o)[clean_values]
     C = (c)[clean_values]
-#   V   = (V)[clean_values]
+    Liq   = (Liq)[clean_values]
     H  = (h)[clean_values]
     L   = (l)[clean_values]
     
     
     dollars_at_open  = np.zeros(cleaned_weights.shape)
+    dollars_at_open_calc  = np.zeros(cleaned_weights.shape)
     dollars_at_close = np.zeros(cleaned_weights.shape)
     purchased_shares = np.zeros(cleaned_weights.shape)
     costs            = np.zeros(cleaned_weights.shape)
+    commissions            = np.zeros(cleaned_weights.shape)
     value_at_open    = np.zeros(cleaned_weights.shape[0])
     value_at_open[0] = starting_value
     value_at_close   = np.zeros(cleaned_weights.shape[0])
@@ -51,10 +54,17 @@ def bets_to_pnl(starting_value,strategy_weights,clean_values,o,h,l,c,long_lev, s
 
     for i in range(dollars_at_open.shape[0]):
         dollars_at_open[i,:] = value_at_open[i]*cleaned_weights[i,:]
+        
         purchased_shares[i,:]= dollars_at_open[i,:]/O[i,:]
+
+        threshold = np.minimum(abs(dollars_at_open[i,:]/O[i,:]), Liq[i,:]*ADV_threshold_percentage/100)
+        purchased_shares[i,:]=np.sign(purchased_shares[i,:])*threshold
+        
+        dollars_at_open_calc[i,:]=O[i,:]*purchased_shares[i,:]      
         dollars_at_close[i,:]= C[i,:]*purchased_shares[i,:]
-        costs[i,:]           = np.abs(purchased_shares[i,:])*(H[i,:]-L[i,:])*costs_threshold
-        pnl[i,:]             = (dollars_at_close[i,:]-dollars_at_open[i,:]-costs[i,:])
+        costs[i,:]           = (np.abs(purchased_shares[i,:])*(H[i,:]-L[i,:])*costs_threshold_bps)/10000
+        commissions[i,:]     = (np.abs(purchased_shares[i,:])*commissions_bps/10000)*(H[i,:]+H[i,:])
+        pnl[i,:]             = (dollars_at_close[i,:]-dollars_at_open_calc[i,:]-costs[i,:]-commissions[i,:])
         daily_pnl[i]         = np.nansum(pnl[i,:])
         long_pnl[i]         = np.nansum(pnl[i,:][cleaned_weights[i,:]>0])
         short_pnl[i]        = np.nansum(pnl[i,:][cleaned_weights[i,:]<0])
@@ -68,9 +78,10 @@ def bets_to_pnl(starting_value,strategy_weights,clean_values,o,h,l,c,long_lev, s
 
     return strategy_daily_returns, long_contribution, short_contribution, costs, purchased_shares,dollars_at_open, dollars_at_close, value_at_open, value_at_close, pnl, daily_pnl
     
-strategy_daily_returns, long_contribution, short_contribution, costs, purchased_shares, dollars_at_open, dollars_at_close, value_at_open, value_at_close, pnl, daily_pnl = bets_to_pnl(starting_value,strategy_weights,clean_values_from_weights,Open_for_ret,High_for_ret,Low_for_ret,Close_for_ret, long_leverage, short_leverage)
+strategy_daily_returns, long_contribution, short_contribution, costs, purchased_shares, dollars_at_open, dollars_at_close, value_at_open, value_at_close, pnl, daily_pnl = bets_to_pnl(starting_value,strategy_weights,clean_values_from_weights,Open_for_ret,High_for_ret,Low_for_ret,Close_for_ret, Liquidity, long_leverage, short_leverage)
 
 strategy_log_returns = np.log(1+strategy_daily_returns)
+
 
 underlying_daily_returns = np.nanmean(np.log(Close_for_ret[clean_values_from_weights]/Open_for_ret[clean_values_from_weights]),axis=1)
 

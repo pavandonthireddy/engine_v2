@@ -44,7 +44,7 @@ def get_clean_index(address,start_date,end_date):
     return sample.index, diff_dates['Diff'].values, tickers_universe
 
 clean_index,diff_dates,tickers_universe = get_clean_index(datasets_address,start_date,end_date)
-tickers = tickers_universe[50:75]
+tickers = tickers_universe[50:55]
 
 def get_portfolio(portfolio_all,tickers_universe,tickers):
     if portfolio_all:
@@ -74,9 +74,11 @@ def load_datasets(address,other_assets,variable_list,clean_index,portfolio,ticke
         
 datasets_dict = load_datasets(datasets_address,other_assets,variable_list,clean_index,portfolio,tickers_universe)
 
+
+
 Open_for_ret = hf.shift(datasets_dict['Open'],-1*delay,np.nan)
 Close_for_ret = hf.shift(datasets_dict['Close'],-1*delay,np.nan) 
 Volume_for_ret = hf.shift(datasets_dict['Volume'],-1*delay,np.nan)
 High_for_ret = hf.shift(datasets_dict['High'],-1*delay,np.nan)
 Low_for_ret = hf.shift(datasets_dict['Low'],-1*delay,np.nan)
-
+Liquidity = datasets_dict['ADV']
