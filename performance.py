@@ -36,6 +36,31 @@ def metrics():
     #years = ((end_date-start_date).astype('timedelta64[Y]'))/np.timedelta64(1, 'Y')
     res_dict['TOTAL_BARS'] = len(cleaned_index)
     
+    excess_returns = bets.strategy_log_returns-rf_returns
+    sr = mth.sqrt(252)*np.mean(excess_returns)/np.std(excess_returns)
+ 
+
+    def minTRL(sharpe, skew, kurtosis, target_sharpe=0, prob=0.95):
+        from scipy.stats import norm
+        min_track = (
+            1
+            + (1 - skew * sharpe + sharpe ** 2 * (kurtosis - 1) / 4.0)
+            * (norm.ppf(prob) / (sharpe - target_sharpe)) ** 2
+        )
+        return min_track
+    
+    from scipy.stats import norm
+    from scipy.stats import kurtosis, skew
+    g_3 = skew(excess_returns)
+    g_4 = kurtosis(excess_returns)
+
+    res_dict['MIN_TRL_SRGE1_99.99%']='{0:.0f} bars or {1:.2f} years'.format(minTRL(sr,g_3,g_4,1,0.9999),minTRL(sr,g_3,g_4,1,0.9999)/252)
+    res_dict['MIN_TRL_SRGE2_99.99%']='{0:.0f} bars or {1:.2f} years'.format(minTRL(sr,g_3,g_4,2,0.9999),minTRL(sr,g_3,g_4,2,0.9999)/252)
+    res_dict['MIN_TRL_SRGE3_99.99%']='{0:.0f} bars or {1:.2f} years'.format(minTRL(sr,g_3,g_4,3,0.9999),minTRL(sr,g_3,g_4,3,0.9999)/252)
+    
+
+    
+    
     #2. Average AUM
     res_dict['AVERAGE_AUM'] = np.nanmean(np.nansum(np.abs(bets.dollars_at_open),axis=1))
     
@@ -57,7 +82,7 @@ def metrics():
     res_dict['AVERAGE_DAILY_TURNOVER']= np.mean(daily_turnover)
     
     #6. Correlation to underlying
-    res_dict['CORRELATION_WITH_UNDERLYING'] = np.corrcoef(bets.underlying_daily_returns,bets.strategy_daily_returns)[0,1]
+    res_dict['CORRELATION_WITH_UNDERLYING'] = np.corrcoef(bets.underlying_daily_returns,bets.strategy_log_returns)[0,1]
     
     #7. Ratio of longs
     
@@ -69,7 +94,7 @@ def metrics():
     
     #9. Stability of Wealth Process
     
-    cum_log_returns = np.log1p(bets.strategy_daily_returns).cumsum()
+    cum_log_returns = np.log1p(bets.strategy_log_returns).cumsum()
     rhat = stats.linregress(np.arange(len(cum_log_returns)), cum_log_returns)[2]
     res_dict['STABILITY_OF_WEALTH_PROCESS']=rhat**2
     
@@ -123,8 +148,8 @@ def metrics():
         hhi=(hhi-returns.shape[0]**-1)/(1.-returns.shape[0]**-1)
         return hhi
     
-    res_dict['HHI_PLUS'] = runs(bets.strategy_daily_returns[bets.strategy_daily_returns>0])
-    res_dict['HHI_MINUS'] = runs(bets.strategy_daily_returns[bets.strategy_daily_returns<0])
+    res_dict['HHI_PLUS'] = runs(bets.strategy_log_returns[bets.strategy_log_returns>0])
+    res_dict['HHI_MINUS'] = runs(bets.strategy_log_returns[bets.strategy_log_returns<0])
     
     # 2. Drawdown and Time under Water
 
@@ -142,7 +167,7 @@ def metrics():
         return Max_Daily_Drawdown
     
    
-    DD_strategy=MDD(bets.strategy_daily_returns)
+    DD_strategy=MDD(bets.strategy_log_returns)
     DD_benchmark=MDD(benchmark_returns)
     res_dict['MDD_STRATEGY'] = DD_strategy.min()
     res_dict['MDD_BENCHMARK'] = DD_benchmark.min()
@@ -158,8 +183,21 @@ def metrics():
     # D. Efficiency
     
     #1. Sharpe Ratio
-    excess_returns = bets.strategy_daily_returns-rf_returns
+    excess_returns = bets.strategy_log_returns-rf_returns
     res_dict['SHARPE_RATIO'] = mth.sqrt(252)*np.mean(excess_returns)/np.std(excess_returns)
+    
+    # Adjusted Sharpe Ratio
+#    def adjusted_sharpe(sr, skew, excess_kurtosis):
+#        return sr * (1 + (skew / 6.0) * sr + excess_kurtosis / 24.0 * sr ** 2)
+#    
+#    def sharpe_iid_adjusted(rtns,factor=252):
+#        excess_mean = np.mean(rtns)
+#        sr = np.sqrt(factor) * excess_mean / np.std(rtns, axis=0, ddof=1)
+#        skew = stats.skew(rtns, bias=False, nan_policy="omit")
+#        excess_kurt = stats.kurtosis(rtns, bias=False, fisher=True, nan_policy="omit")
+#        return adjusted_sharpe(sr, skew, excess_kurt)*np.sqrt(252)
+#    
+#    res_dict['ADJUSTED_SHARPE_RATIO']=sharpe_iid_adjusted(excess_returns)
     
     #from statsmodels.graphics.tsaplots import plot_acf
     #plot_acf(excess_returns)
@@ -168,14 +206,11 @@ def metrics():
 
     
     #2.Probabilistic Sharpe ratio
-    from scipy.stats import norm
-    from scipy.stats import kurtosis, skew
-    g_3 = skew(excess_returns)
-    g_4 = kurtosis(excess_returns)
-    res_dict['PROBABILISTIC_SHARPE_RATIO'] = norm.cdf(((res_dict['SHARPE_RATIO']-2)*mth.sqrt(len(excess_returns)-1))/(mth.sqrt(1-(g_3*res_dict['SHARPE_RATIO'])+(0.25*(g_4-1)*res_dict['SHARPE_RATIO']*res_dict['SHARPE_RATIO']))))
+
+    res_dict['PROBABILISTIC_SHARPE_RATIO'] = norm.cdf(((res_dict['SHARPE_RATIO']-2)*mth.sqrt((len(excess_returns)-1)/252))/(mth.sqrt(1-(g_3*res_dict['SHARPE_RATIO'])+(0.25*(g_4-1)*res_dict['SHARPE_RATIO']*res_dict['SHARPE_RATIO']))))
     
     #3.Information ratio
-    excess_returns_benchmark = bets.strategy_daily_returns-benchmark_returns
+    excess_returns_benchmark = bets.strategy_log_returns-benchmark_returns
     res_dict['INFORMATION_RATIO'] = mth.sqrt(252)*np.mean(excess_returns_benchmark)/np.std(excess_returns_benchmark)
     
     #3. t_stat & P-value
@@ -200,7 +235,7 @@ def metrics():
     res_dict['OMEGA_RATIO']=numer/denom
     
     #5. Tail Ratio
-    res_dict['TAIL_RATIO']=np.abs(np.percentile(bets.strategy_daily_returns, 95)) /np.abs(np.percentile(bets.strategy_daily_returns, 5))
+    res_dict['TAIL_RATIO']=np.abs(np.percentile(bets.strategy_log_returns, 95)) /np.abs(np.percentile(bets.strategy_log_returns, 5))
     
     
     #6. Rachev Ratio 
@@ -209,19 +244,26 @@ def metrics():
     CVAR_left = -1*(np.nanmean(excess_returns[excess_returns<=left_threshold]))
     CVAR_right = (np.nanmean(excess_returns[excess_returns>=right_threshold]))
     res_dict['RACHEV_RATIO']=CVAR_right/CVAR_left
+    
+
     #############################################################################################
     # E. RISK MEASURES
     
     #1. SKEWNESS, KURTOSIS
-    res_dict['SKEWNESS'] = stats.skew(bets.strategy_daily_returns, bias = False)
-    res_dict['KURTOSIS'] = stats.kurtosis(bets.strategy_daily_returns, bias = False)
+    res_dict['SKEWNESS'] = stats.skew(bets.strategy_log_returns, bias = False)
+    res_dict['KURTOSIS'] = stats.kurtosis(bets.strategy_log_returns, bias = False)
     
     #2. ANNUALIZED VOLATILITY
-    res_dict['ANNUALIZED_VOLATILITY'] = np.std(bets.strategy_daily_returns)*np.sqrt(252)
+    res_dict['ANNUALIZED_VOLATILITY'] = np.std(bets.strategy_log_returns)*np.sqrt(252)
 
     #3. MAR Ratio
     res_dict['MAR_RATIO']=(res_dict['CAGR_STRATEGY'])/abs(res_dict['MDD_STRATEGY'])
     
+    #4 Tracking Error
+    res_dict['TRACKING_ERROR']= np.std(bets.strategy_log_returns-benchmark_returns,ddof=1)
+    
+    percentile = 0.001
+    res_dict['VaR_99.9']= np.percentile(np.sort(bets.strategy_log_returns), percentile * 100)
     
     
     #############################################################################################
@@ -279,7 +321,6 @@ def metrics():
                                  'Adjusted R2':lambda x: "{:.4f}".format(x.rsquared_adj)}, 
                                  regressor_order = ['Intercept', 'MKT', 'SMB', 'HML', 'RMW', 'CMA'])
     
-        print(dfoutput)
         
         return dfoutput,results_df
     
@@ -293,12 +334,22 @@ def metrics():
     # 1. Sharpe Bootstrap
     from arch.bootstrap import MovingBlockBootstrap
     from numpy.random import RandomState  
-    bs_sharpe = MovingBlockBootstrap(5,excess_returns, random_state=RandomState(1234))
     
-    def sharpe(y):
-        return (mth.sqrt(252)*np.mean(y))/np.std(y)
-    res = bs_sharpe.apply(sharpe,10000)      
-    plots.density_plot_bootstrap(res,res_dict['SHARPE_RATIO'])
+    def geom_mean(y):
+        log_ret = np.log(1+y)
+        geom = np.exp(np.sum(log_ret)/len(log_ret))-1
+        return geom
+    
+    geo_avg = geom_mean(bets.strategy_daily_returns)
+    detrended_ret = bets.strategy_daily_returns- geo_avg
+    bs_sharpe = MovingBlockBootstrap(5,detrended_ret, random_state=RandomState(1234))
+    
+    
+
+    res = bs_sharpe.apply(geom_mean,10000)      
+    plots.density_plot_bootstrap(res,geo_avg)
+    p_val = (res<=geo_avg).sum()/len(res)
+    res_dict['GM_BOOTSTRAP_p_val']= p_val
     
 
 

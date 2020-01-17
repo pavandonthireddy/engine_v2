@@ -70,7 +70,7 @@ def bets_to_pnl(starting_value,strategy_weights,clean_values,o,h,l,c,long_lev, s
     
 strategy_daily_returns, long_contribution, short_contribution, costs, purchased_shares, dollars_at_open, dollars_at_close, value_at_open, value_at_close, pnl, daily_pnl = bets_to_pnl(starting_value,strategy_weights,clean_values_from_weights,Open_for_ret,High_for_ret,Low_for_ret,Close_for_ret, long_leverage, short_leverage)
 
-
+strategy_log_returns = np.log(1+strategy_daily_returns)
 
 underlying_daily_returns = np.nanmean(np.log(Close_for_ret[clean_values_from_weights]/Open_for_ret[clean_values_from_weights]),axis=1)
 
