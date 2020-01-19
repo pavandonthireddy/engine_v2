@@ -58,11 +58,11 @@ def metrics():
     g_3 = skew(excess_returns)
     g_4 = kurtosis(excess_returns)
 
-    res_dict['MIN_TRL_SRGE1_99.99%']='{0:.0f} bars or {1:.2f} years'.format(minTRL(sr,g_3,g_4,1,0.9999),minTRL(sr,g_3,g_4,1,0.9999)/252)
+    res_dict['MIN_TRL_SRGE1_99%']='{0:.0f} bars or {1:.2f} years'.format(minTRL(sr,g_3,g_4,1,0.99),minTRL(sr,g_3,g_4,1,0.99)/252)
     
-    res_dict['MIN_TRL_SRGE2_99.99%']='{0:.0f} bars or {1:.2f} years'.format(minTRL(sr,g_3,g_4,2,0.9999),minTRL(sr,g_3,g_4,2,0.9999)/252)
+    res_dict['MIN_TRL_SRGE2_99%']='{0:.0f} bars or {1:.2f} years'.format(minTRL(sr,g_3,g_4,2,0.99),minTRL(sr,g_3,g_4,2,0.99)/252)
     
-    res_dict['MIN_TRL_SRGE3_99.99%']='{0:.0f} bars or {1:.2f} years'.format(minTRL(sr,g_3,g_4,3,0.9999),minTRL(sr,g_3,g_4,3,0.9999)/252)
+    res_dict['MIN_TRL_SRGE3_99%']='{0:.0f} bars or {1:.2f} years'.format(minTRL(sr,g_3,g_4,3,0.99),minTRL(sr,g_3,g_4,3,0.99)/252)
     
 
     
@@ -300,7 +300,7 @@ def metrics():
     
     res_dict['CLASSIFICATION_DATA']= {'Class' :['-1','0','1'], 'Precision':list(precision),'Recall':list(recall),'F-Score':list(fscore),'Support':list(support) }
     res_dict['CLASSIFICATION_DATA']=pd.DataFrame(res_dict['CLASSIFICATION_DATA'])
-
+#
 
 
 

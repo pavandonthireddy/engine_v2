@@ -42,7 +42,7 @@ def bets_to_pnl(starting_value,strategy_weights,clean_values,o,h,l,c,Liq, long_l
     dollars_at_close = np.zeros(cleaned_weights.shape)
     purchased_shares = np.zeros(cleaned_weights.shape)
     costs            = np.zeros(cleaned_weights.shape)
-    commissions            = np.zeros(cleaned_weights.shape)
+    commissions        = np.zeros(cleaned_weights.shape)
     value_at_open    = np.zeros(cleaned_weights.shape[0])
     value_at_open[0] = starting_value
     value_at_close   = np.zeros(cleaned_weights.shape[0])
@@ -50,6 +50,11 @@ def bets_to_pnl(starting_value,strategy_weights,clean_values,o,h,l,c,Liq, long_l
     daily_pnl        = np.zeros(cleaned_weights.shape[0])
     long_pnl        = np.zeros(cleaned_weights.shape[0])
     short_pnl        = np.zeros(cleaned_weights.shape[0])
+    
+    def tc_Q_vss_bps(pct_adv, minutes=1.0, minutes_in_day=60*6.5):
+        day_frac = minutes / minutes_in_day
+        tc_pct = 0.1 * abs(pct_adv/day_frac)**2
+        return tc_pct*10000
     
 
     for i in range(dollars_at_open.shape[0]):
@@ -62,8 +67,13 @@ def bets_to_pnl(starting_value,strategy_weights,clean_values,o,h,l,c,Liq, long_l
         
         dollars_at_open_calc[i,:]=O[i,:]*purchased_shares[i,:]      
         dollars_at_close[i,:]= C[i,:]*purchased_shares[i,:]
+        
+
+#        costs_bps[i,:]       = tc_Q_vss_bps(purchased_shares[i,:]/Liq[i,:],5,60*6.5)
         costs[i,:]           = (np.abs(purchased_shares[i,:])*(H[i,:]-L[i,:])*costs_threshold_bps)/10000
+               
         commissions[i,:]     = (np.abs(purchased_shares[i,:])*commissions_bps/10000)*(H[i,:]+H[i,:])
+        
         pnl[i,:]             = (dollars_at_close[i,:]-dollars_at_open_calc[i,:]-costs[i,:]-commissions[i,:])
         daily_pnl[i]         = np.nansum(pnl[i,:])
         long_pnl[i]         = np.nansum(pnl[i,:][cleaned_weights[i,:]>0])
